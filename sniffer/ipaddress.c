@@ -34,7 +34,7 @@ ipaddress* new_ipaddress(bool owned, unsigned char *p_data) {
     ip->owned = owned;
     ip->print_ipaddress = print_ipaddress;
     if (ip->owned) {
-        memcpy(i->p_data, p_data, i->p_int);
+        memcpy(ip->p_data, p_data, ip->p_int);
     } else {
         ip->p_data = p_data;
     }
