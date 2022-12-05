@@ -11,8 +11,8 @@ struct tcpsegment_ {
     unsigned int p_len;
     unsigned int (*length)(tcpsegment *self);
     unsigned int (*header_length)(tcpsegment *self);
-    unsigned int (*source_port)(tcpsegment *self);
-    unsigned int (*destination_port)(tcpsegment *self);
+    unsigned int (*src_port)(tcpsegment *self);
+    unsigned int (*dst_port)(tcpsegment *self);
     unsigned int (*sequence_nb)(tcpsegment *self);
     unsigned int (*ack_nb)(tcpsegment *self);
     unsigned int (*offset)(tcpsegment *self);

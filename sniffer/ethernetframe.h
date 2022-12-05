@@ -8,10 +8,22 @@
 
 typedef struct ethernetframe_ ethernetframe;
 
-typedef enum etherType_ {
-    et_Length, et_DEC, et_XNS, et_IPv4, et_ARP, et_Domain, et_RARP, et_IPX, 
-    et_AppleTalk, et_802_1Q, et_IPv6, et_loopback, et_other, et_none
-} etherType;
+typedef enum EtherType_ {
+    et_Length, 
+    et_DEC, 
+    et_XNS, 
+    et_IPv4, 
+    et_ARP, 
+    et_Domain, 
+    et_RARP, 
+    et_IPX, 
+    et_AppleTalk, 
+    et_802_1Q, 
+    et_IPv6, 
+    et_loopback, 
+    et_other, 
+    et_none
+} EtherType;
 
 struct ethernetframe_ {
     bool owned;
@@ -21,7 +33,7 @@ struct ethernetframe_ {
     macaddress* (*destination_mac)(ethernetframe *self);
     macaddress* (*source_mac)(ethernetframe *self);
     unsigned int (*ether_code)(ethernetframe *self);
-    etherType (*ether_type)(ethernetframe *self);
+    EtherType (*ether_type)(ethernetframe *self);
     unsigned int (*header_length)(ethernetframe *self);
     unsigned int (*length)(ethernetframe *self);
     unsigned char* (*data)(ethernetframe *self);

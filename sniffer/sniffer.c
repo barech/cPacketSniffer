@@ -78,16 +78,19 @@ void destroy_trackers() {
 // callback given to pcap_loop() fro processing captural datagrams
 void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *packet) {
 
-    if(!quiet_mode) printf("Grabbed %d bytes (%d%%) of datagram received on %s", 
-        h->caplen, 
-        (int)(100.0 * h->caplen / h->len), 
-        ctime((const time_t*)&h->ts.tv_sec)
-    );
+    if(!quiet_mode)
+        printf("===Grabbed %d bytes (%d%%) of datagram, received on %s\n", 
+            h->caplen, 
+            (int)(100.0 * h->caplen / h->len), 
+            ctime((const time_t*)&h->ts.tv_sec)
+            );
+
     // create datagram instance
     datagram *d = new_datagram(packet, h->caplen);
     if (show_raw) {
         if(!quiet_mode) d->print_datagram(d);
     }
+    printf("---------- Begin to analyze this frame ----------\n");
     // create ethernetframe instance
     ethernetframe *e = d->create_ethernetframe(d);
     if(!quiet_mode) printf("---------- Ethernet frame header ----------\n");
@@ -118,8 +121,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
                 // release allocated memory
                 free(icmp);
             }
-            // if  it transports a TCP segment, display its attribute
-            else if (i->protocol(i) == ipp_tcp) {
+            else if (i->protocol(i) == ipp_tcp) {// if  it transports a TCP segment, display its attribute
                 tcpsegment *tcp = i->create_tcpsegment(i);
                 if(!quiet_mode) printf("----- TCP segment header -----\n");
                 if(!quiet_mode) tcp->print_tcpsegment(tcp);
@@ -129,11 +131,10 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
                     tcpSessions->process_tcpsegment(i, tcpSessions);     
                 }
                 
-                // release allocated memo
+                // release allocated memory
                 free(tcp);
             } 
-            // if it transports a UDP segment, display its attributes
-            else if (i->protocol(i) == ipp_udp) {
+            else if (i->protocol(i) == ipp_udp) {// if it transports a UDP segment, display its attributes
                 udpsegment *udp = i->create_udpsegment(i);
                 if(!quiet_mode) printf("----- UDP segment header -----\n");
                 if(!quiet_mode) udp->print_udpsegment(udp);
@@ -143,9 +144,8 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
                     tftpSessions->process_tftpmessage(i, tftpserver, tftpSessions);
                 }
                 
-                //release allocated memo
-                free(udp);
-                                      
+                //release allocated memory
+                free(udp);                 
             }
 
             // release allocated memory
@@ -178,7 +178,6 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
                         break;
                 }
             }
-
             // release allocated memory
             free(a);
             break;

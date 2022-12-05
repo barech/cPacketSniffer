@@ -8,7 +8,7 @@ OBJ = $(SRC:.c=.o)
 CC = cc
 RM = rm
 
-CFLAGS = -g
+CFLAGS = -g -std=gnu99 -I/usr/include
 LIBS = -lpcap
 LDFLAGS =
 

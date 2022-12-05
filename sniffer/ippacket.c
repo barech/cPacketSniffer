@@ -171,8 +171,8 @@ void print_ippacket(ippacket *i) {
             case 6: printf("IPv6\n"); break;
             default: printf("unknown [%d]\n", i->version(i));
         }
-        printf("header length = %d (IHL = %d) \n", i->ip_header_length(i), i->ihl(i));
-        printf("type of service = %d:\n", i->tos(i));
+        printf("HDR Len = %d(IHL = %d)\t TOS :=%d \n", i->ip_header_length(i), i->ihl(i), i->tos(i));
+
         if (i->tos(i) > 0) {
             switch(i->tos(i) >> 5) {
                 case 0: printf(" precedence = routine\n"); break;
@@ -206,14 +206,13 @@ void print_ippacket(ippacket *i) {
                 printf(" cost = normal \n");
         }
 
-        printf("total length = %d\n", i->total_length(i));
+        printf("Total Length = %d\n", i->total_length(i));
+        printf("Fragment ID = 0x%.4x\n", i->fragment_id(i));
+        printf("Don't Fragment = %d\n", i->fragment_flags(i) & 0x2);
+        printf("More Fragments = %d\n", i->fragment_flags(i) & 0x1);
+        printf("Fragment Position = %d\n", i->fragment_pos(i));
 
-        printf("fragment ID = 0x%.4x\n", i->fragment_id(i));
-        printf(" don't fragment = %d\n", i->fragment_flags(i) & 0x2);
-        printf(" more fragments = %d\n", i->fragment_flags(i) & 0x1);
-        printf(" fragment position = %d\n", i->fragment_pos(i));
-
-        printf("protocol = ");
+        printf("Protocol = ");
         switch(i->protocol(i)) {
             case ipp_icmp: printf("ICMP ["); break;
             case ipp_igmp: printf("IGMP ["); break;
@@ -223,17 +222,17 @@ void print_ippacket(ippacket *i) {
         }
         printf("0x%.2x]\n", i->protocol_id(i));
 
-        printf("time to live = %d\n", i->ttl(i));
+        printf("Time to live = %d\n", i->ttl(i));
 
-        printf("checksum = 0x%.4x \n", i->checksum(i));
+        printf("Chksum = 0x%.4x \n", i->checksum(i));
 
         // Display IP addrresses
         ipaddress *d = i->destination_ip(i),
                   *s = i->source_ip(i);
 
-        printf("destination IP address = ");
+        printf("DST_ADDR := ");
         d->print_ipaddress(d);
-        printf("source IP addrress = ");
+        printf("SRC_ADDR := ");
         s->print_ipaddress(s);
 
         if (i->count_options(i) > 0) {

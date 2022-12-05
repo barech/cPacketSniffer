@@ -10,7 +10,7 @@ unsigned int source_port(tcpsegment *t) {
 }
 
 // Return destination port
-unsigned int destination_port(tcpsegment *t) {
+unsigned int dst_port(tcpsegment *t) {
     return char2word(t->p_data + 2);
 }
 
@@ -23,7 +23,6 @@ unsigned int sequence_nb(tcpsegment *t) {
 unsigned int ack_nb(tcpsegment *t) {
     return char4word(t->p_data + 8);
 }
-
 
 // TCP segment length in byte
 static unsigned int length(tcpsegment *t) {
@@ -91,7 +90,6 @@ bool flag_fin(tcpsegment *t) {
     return t->p_data[13] & 0x01;
 }
 
-
 // Return the window size 
 unsigned int window_size(tcpsegment *t) {
     return char2word(t->p_data + 14);
@@ -138,34 +136,15 @@ char* port_name(unsigned int num) {
 void print_tcpsegment(tcpsegment *t) {
     if(t->p_data) {
         char outstr[16];
-        
-        printf("source port = %d", t->source_port(t));
-        printf(" [%s]\n", t->port_name(t->source_port(t)));
-
-        printf("destination port = %d", t->destination_port(t));
-        printf(" [%s]\n", t->port_name(t->destination_port(t)));
-
-        printf("sequence number = %d\n", t->sequence_nb(t));
-        printf("ack number = %d\n", t->ack_nb(t));
-    
+        printf("src_port = %d [%s]\t dst_port = %d %s]\n", t->src_port(t), t->port_name(t->src_port(t)), t->dst_port(t), t->port_name(t->dst_port(t)));
+        printf("seq_nbr = %d\t ack_nbr = %d\n", t->sequence_nb(t), t->ack_nb(t));
         printf("offset = %d\n", t->offset(t));
         printf("reserved = %d\n", t->reserved(t));
         
-        printf("NS flag = %d\n", t->flag_ns(t));
-        printf("CWR flag = %d\n", t->flag_cwr(t));
-        printf("ECE flag = %d\n", t->flag_ece(t));
-        printf("URG flag = %d\n", t->flag_urg(t));
-        printf("ACK flag = %d\n", t->flag_ack(t));
-        printf("PSH flag = %d\n", t->flag_psh(t));
-        printf("RST flag = %d\n", t->flag_rst(t));
-        printf("SYN flag = %d\n", t->flag_syn(t));
-        printf("FIN flag = %d\n", t->flag_fin(t));
+        printf("NS  := %d\t CWR := %d\t ECE := %d\t URG := %d\t ACK := %d\n", t->flag_ns(t), t->flag_cwr(t), t->flag_ece(t), t->flag_urg(t), t->flag_ack(t));
+        printf("PSH := %d\t RST := %d\t SYN := %d\t FIN := %d\n", t->flag_psh(t), t->flag_rst(t), t->flag_syn(t), t->flag_fin(t));
 
-        printf("window size = %d\n", t->window_size(t));
-        printf("urgent pointer = %d\n", t->pointer_urg(t));
-
-        sprintf(outstr, "0x%.4x", t->checksum(t));
-        printf("checksum = %s\n", outstr);
+        printf("Win Size := %d\t URG Ptr := %d\t CHKSUM := 0x%.4x\n", t->window_size(t),  t->pointer_urg(t), t->checksum(t));
     }
 }
 
@@ -176,8 +155,8 @@ tcpsegment* new_tcpsegment(bool owned, unsigned char *p_data, unsigned int p_len
     t->offset = offset;
     t->length = length;
     t->header_length = header_length;
-    t->source_port = source_port;
-    t->destination_port = destination_port;
+    t->src_port = source_port;
+    t->dst_port = dst_port;
     t->sequence_nb = sequence_nb;
     t->ack_nb = ack_nb;
     t->reserved = reserved;

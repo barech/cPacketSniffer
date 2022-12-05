@@ -6,7 +6,6 @@
 
 typedef struct tcpsessiontracker_ *tcpsessiontracker;
 
-
 struct tcpsessiontracker_ {
     HashTable tcpSessions;
     void (*process_tcpsegment)(ippacket*, tcpsessiontracker);

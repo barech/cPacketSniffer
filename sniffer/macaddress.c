@@ -3,14 +3,13 @@
 #include <stdio.h>
 #include "macaddress.h"
 
-
-
 unsigned int macaddress_length(macaddress *m) {
     return m->p_len;
 }
 
 void print_macaddress(macaddress *m) {
-    for (unsigned int i = 0; i < m->macaddress_length(m); i++) {
+    unsigned int i = 0;
+    for (i = 0; i < m->macaddress_length(m); i++) {
         printf("%.2x", m->p_data[i]);
         if (i < m->macaddress_length(m) - 1) {
             printf(".");
@@ -21,8 +20,9 @@ void print_macaddress(macaddress *m) {
 
 char* get_macaddress(macaddress *m) {
     char *mac = malloc(sizeof(char)*20);
+    unsigned int n = 0;
     mac[0] = 0; // malloc doesn't initialize the memory. mac[0] = '\0' also works
-    for (unsigned int n = 0; n < m->p_len; n++) {
+    for (n = 0; n < m->p_len; n++) {
         char s[3];
         sprintf(s, "%.2x", m->p_data[n]);
         strcat(mac, s);
@@ -32,7 +32,6 @@ char* get_macaddress(macaddress *m) {
     }
     return mac;
 }
-
 
 macaddress* new_macaddress(bool owned, unsigned char *p_data) {
     macaddress *m = malloc(sizeof(macaddress));

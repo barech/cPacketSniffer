@@ -44,11 +44,9 @@ void free_datagram(datagram *d) {
     free(d);
 }
 
-
 ethernetframe* create_ethernetframe(datagram *d) {
     return new_ethernetframe(false, d->p_data, d->p_len);
 }
-
 
 datagram* new_datagram(unsigned char *p_data, unsigned int p_len) {
     datagram *d = malloc(sizeof(datagram));

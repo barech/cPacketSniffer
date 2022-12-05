@@ -32,7 +32,8 @@ void add(ET elem, SimpleSet s) {
  * */
 
 int find(ET elem, SimpleSet s) {
-    for(int i = 0; i <= 1; i++ ) {
+    int i = 0;
+    for(i = 0; i <= 1; i++ ) {
         if(strcmp(s->Array[i], elem) == 0){ // strcmp return 0 if two strings are equal
             return i;
         }
@@ -45,11 +46,12 @@ int find(ET elem, SimpleSet s) {
  * */
 void removeElement(ET elem, SimpleSet s) {
    int index;
+   int i = 0;
    index = s->find(elem, s); 
    if (index == -1) { // if the element doesn't exist
         return;  
    } else {
-       for (int i = index; i <= s->Size -1; i++) {
+       for (i = index; i <= s->Size -1; i++) {
             strcpy(s->Array[i], s->Array[i + 1]);
        }
        s->Size--; // decrease the size by one
@@ -57,7 +59,8 @@ void removeElement(ET elem, SimpleSet s) {
 }
 
 void printSimpleSet(SimpleSet s) {
-    for(int i = 0; i <= s->Size; i++) {
+    int i = 0;
+    for(i = 0; i <= s->Size; i++) {
         printf("%s ", s->Array[i]);
     }
     printf("\n");

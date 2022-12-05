@@ -15,8 +15,6 @@ struct tcpsession_ {
     bool (*terminated)(tcpsession);        // tells if session terminated
 };
 
-
-
 tcpsession new_tcpsession(char*, char*);
 
 #endif 

@@ -24,7 +24,7 @@ unsigned int ether_code(ethernetframe *e) {
 
 // Returns an enum value corresponding to what this transports. Only the most frequent 
 // layer two protocols arew listed - there are more than one hundred of them in reality!
-etherType ether_type(ethernetframe *e) {
+EtherType ether_type(ethernetframe *e) {
     // values of 1500 (0x05DC) and below indicate that it is used as the size of the payload in bytes
     if(e->ether_code(e) <= 0x05DC) {
         return et_Length;
@@ -109,9 +109,9 @@ void print_ethernetframe(ethernetframe *e) {
         // Display Mac addresses
         macaddress *d = e->destination_mac(e),
                    *s = e->source_mac(e);
-        printf("destination MAC address: ");
+        printf("DST_MAC := ");
         d->print_macaddress(d);
-        printf("source MAC address: ");
+        printf("SRC_MAC := ");
         s->print_macaddress(s);
 
         // Display the hexadecimal value of the Ethernet code field (i.e. what the frame transports)
@@ -119,7 +119,7 @@ void print_ethernetframe(ethernetframe *e) {
         sprintf(outstr, "0x%.4x", e->ether_code(e));
 
         // Display the Ethernet code field in textual form. If it's 802.1Q type, the code identifier is dsiplayed later on
-        printf("ether type = ");
+        printf("Ethernet Type = ");
 
         switch(e->ether_type(e)) {
             case et_Length:     printf("Length field [%s]\n", outstr); break;

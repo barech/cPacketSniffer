@@ -15,5 +15,4 @@ struct datagram_ {
 
 datagram* new_datagram(unsigned char *p_data, unsigned int p_len);
 
-
 #endif
