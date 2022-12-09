@@ -7,11 +7,14 @@
 #include <time.h> // ctime
 #include <pcap.h> // libpcap
 #include <stdbool.h> // bool
+#include <hiredis/hiredis.h>
 #include "datagram.h"
 #include "ethernetframe.h"
 #include "ippacket.h"
 #include "arppacket.h"
 #include "sniffer.h"
+#include "tuple.h"
+#include "utils.h"
 #include "ipaddress.h"
 #include "simple-set.h"
 #include "pingflooddetector.h"
@@ -32,6 +35,114 @@ SimpleSet arpRequests = NULL;  // arp spoofing detector
 pingflooddetector pingFloods = NULL;  // ping flood detector
 tcpsessiontracker tcpSessions = NULL; // tcp sessions tracker
 tftpsessiontracker tftpSessions = NULL; // tftp sessions tracker
+
+//mutex & sniffer
+struct sniff_list sniffer_list;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void sniff_list_handler(int signum)
+{
+	int i = 0;
+
+	switch (signum) {
+		case SIGINT:
+		case SIGQUIT:
+		case SIGTERM:
+			for (i = 0; i < sniff_conf.cpu_number; i++) {
+				pthread_cancel(sniff_conf.thread[i]);
+			}
+
+            for (i = 0; i < sniff_conf.cpu_number; i++) {
+                pthread_join(sniff_conf.thread[i], NULL);
+			}
+
+			free(sniff_conf.thread);
+			sniff_list_destroy();
+			break;
+	}
+}
+
+void init_config(const char *argv0)
+{
+	const char *cp = NULL;
+	sniff_conf.cpu_number = sysconf(_SC_NPROCESSORS_ONLN);
+	sniff_conf.thr_number = sniff_conf.cpu_number - 1;
+
+	if ((cp = strrchr(argv0, '/')) != NULL)
+		sniff_conf.program_name = cp + 1;
+	else
+		sniff_conf.program_name = argv0;
+
+	sniff_conf.thread = (pthread_t *) malloc(sniff_conf.thr_number * sizeof(pthread_t));
+	if (sniff_conf.thread == NULL) 
+		error("malloc failed.\n");
+}
+
+void *send_redis_handler(void *arg)
+{
+	char ip_src[MAXINUM_ADDR_LENGTH] = "";
+	char ip_dst[MAXINUM_ADDR_LENGTH] = "";
+    char buf[128] = "";
+    char redis_list_name[32] = "pcap_sniff_info";
+	char *addr_buf = NULL;
+	redisContext *context = NULL;
+	redisReply *reply = NULL; 
+	int ret = 0;
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	/* Initialize redis client */
+	context = redisConnect("127.0.0.1", 6379);
+	if (context->err) {
+		error("Connect to redis server failed.\n");
+	}
+
+	reply = (redisReply *)redisCommand(context, "AUTH 123456");
+	if (reply->type == REDIS_REPLY_ERROR) {
+		error("Redis Authentication failed!\n");
+	} else {
+		printf("Redis Authentication succeed! \n");
+	}
+	freeReplyObject(reply);
+
+	while (1) {
+		reply = NULL;
+		struct sniff_tuple info;
+        ret = sniff_list_pull(&info);
+		if (ret != SUCCESS) {
+			continue;
+		}
+
+        sprintf(buf, "%s:%d<->%s,%d,%u,%d", info.src,info.src_port,info.dst,info.dst_port,info.tv_sec, info.pkt_cnt);
+
+		reply = (redisReply *)redisCommand(context, "LPUSH %s %s", redis_list_name, buf);
+        //reply = (redisReply *)redisCommand(context, "INCRBY %s %u", buf,  info.pkt_cnt);
+		if (reply == NULL) {
+            redisFree(context);
+			error("execute redis command failed.\n");
+		}
+
+        if(!quiet_mode)
+            printf("reply is %d ;INCRBY %s, %s, %u, %u\n", reply->type, info.src,  info.dst,  info.src_port,  info.dst_port);
+		
+        freeReplyObject(reply);
+	}
+
+	redisFree(context);
+	pthread_exit(NULL);
+}
+
+int start_thread(void)
+{
+	pthread_t *thread = sniff_conf.thread;
+	uint32_t thr_number = sniff_conf.thr_number;
+	int i = 0; 
+
+	for (i = 0; i < thr_number; i++)
+		pthread_create(&thread[i], NULL, send_redis_handler, NULL);
+
+	return 0;
+}
 
 // Function releasing all resources before ending program execution
 static void shutdown_sniffer(int error_code) {
@@ -57,6 +168,7 @@ static void shutdown_sniffer(int error_code) {
 void bypass_sigint(int sig_no) {
     printf("**\nCapture process interrupted by user...\n");
     shutdown_sniffer(0); // we're done
+    sniff_list_handler(sig_no);
 }
 
 // Initialize the trackers
@@ -77,25 +189,32 @@ void destroy_trackers() {
 
 // callback given to pcap_loop() fro processing captural datagrams
 void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *packet) {
-
+    struct sniff_tuple tuple_info;
+    memset(&tuple_info, 0, sizeof(struct sniff_tuple));
     if(!quiet_mode)
         printf("===Grabbed %d bytes (%d%%) of datagram, received on %s\n", 
             h->caplen, 
             (int)(100.0 * h->caplen / h->len), 
             ctime((const time_t*)&h->ts.tv_sec)
             );
-
+    
+    tuple_info.tv_sec = h->ts.tv_sec;
     // create datagram instance
     datagram *d = new_datagram(packet, h->caplen);
     if (show_raw) {
         if(!quiet_mode) d->print_datagram(d);
     }
-    printf("---------- Begin to analyze this frame ----------\n");
+
+    if(!quiet_mode)
+        printf("---------- Begin to analyze this frame ----------\n");
+    
     // create ethernetframe instance
     ethernetframe *e = d->create_ethernetframe(d);
     if(!quiet_mode) printf("---------- Ethernet frame header ----------\n");
     if(!quiet_mode) e->print_ethernetframe(e);
-    free(d); // release the allocated memory not used anymore
+    
+    // release the allocated memory not used anymore
+    free(d);
 
     // Display payload content according to EtherType
     switch(e->ether_type(e)) {
@@ -104,6 +223,12 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
             ippacket *i = e->create_ippacket(e);
             if(!quiet_mode) printf("-------- IP packet header --------\n");
             if(!quiet_mode) i->print_ippacket(i);
+            
+            //fill the src & dst ip
+            sprintf(tuple_info.src, "%s", get_ipaddress(i->source_ip(i)));
+            if(!quiet_mode) printf("tuple_info.src : %s\n", get_ipaddress(i->source_ip(i)) );
+            sprintf(tuple_info.dst, "%s", get_ipaddress(i->destination_ip(i)));
+            if(!quiet_mode) printf("tuple_info.dst : %s\n", get_ipaddress(i->destination_ip(i)) );
             
             // If it's an ICMP packet, display its attributes
             if (i->protocol(i) == ipp_icmp) {
@@ -125,11 +250,18 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
                 tcpsegment *tcp = i->create_tcpsegment(i);
                 if(!quiet_mode) printf("----- TCP segment header -----\n");
                 if(!quiet_mode) tcp->print_tcpsegment(tcp);
+                
+                //fill the src dst port
+                tuple_info.src_port = tcp->src_port(tcp);
+                tuple_info.dst_port = tcp->dst_port(tcp);
 
                 // Apply TCP session tracking if required
                 if(security_tool == TCPTRACK) {
                     tcpSessions->process_tcpsegment(i, tcpSessions);     
                 }
+
+                //push to tuple_info
+                sniff_list_push(tuple_info);
                 
                 // release allocated memory
                 free(tcp);
@@ -139,14 +271,22 @@ void process_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *pac
                 if(!quiet_mode) printf("----- UDP segment header -----\n");
                 if(!quiet_mode) udp->print_udpsegment(udp);
 
+                //fill the src dst port
+                tuple_info.src_port = udp->source_port(udp);
+                tuple_info.dst_port = udp->destination_port(udp);
+
                 // If it is a TFTP message, display its attributes
                 if (security_tool == TFTPTRACK && tftpserver) {
                     tftpSessions->process_tftpmessage(i, tftpserver, tftpSessions);
                 }
-                
+
+                //push to tuple_info
+                sniff_list_push(tuple_info);
+
                 //release allocated memory
                 free(udp);                 
             }
+
 
             // release allocated memory
             free(i);
@@ -404,6 +544,15 @@ int main(int argc, char *argv[]) {
 
     // initialization of trackers
     initialize_trackers();
+
+    /* initialize config */
+	init_config(argv[0]);
+    
+    // initialization of tuple_list
+    sniff_list_init();
+
+    /* start thread sended redis command */
+	start_thread();
 
     // Start capturing
     pcap_loop(pcap_session, cnt, process_packet, (u_char *)logfile);

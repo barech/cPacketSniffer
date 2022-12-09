@@ -9,7 +9,7 @@ CC = cc
 RM = rm
 
 CFLAGS = -g -std=gnu99 -I/usr/include
-LIBS = -lpcap
+LIBS = -lpthread -lpcap -lhiredis
 LDFLAGS =
 
 
